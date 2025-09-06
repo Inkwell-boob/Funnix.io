@@ -2,112 +2,71 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Funnix.io - X & O</title>
+<title>Funnix.io - X & O Multiplayer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-  html, body {
-    margin:0;
-    padding:0;
-    font-family: 'Press Start 2P', cursive;
-    background:#0d0d0d;
-    color:#fff;
-    display:flex;
-    flex-direction:column;
-    min-height:100vh;
-    overflow-x:hidden;
-  }
-
-  header {
-    text-align:center;
-    padding:40px 20px;
-    background:linear-gradient(90deg, #ff4081, #ff6f91);
-    box-shadow:0 4px 15px rgba(0,0,0,0.7);
-  }
-
-  header h1 {
-    margin:0;
-    font-size:2.5rem;
-    color:#fff;
-    text-shadow:0 0 15px #ff4081;
-  }
-
-  .board-container {
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    flex:1;
-    padding:40px 20px;
-  }
-
-  .board {
-    display:grid;
-    grid-template-columns:repeat(3, 100px);
-    grid-template-rows:repeat(3, 100px);
-    gap:10px;
-  }
-
-  .cell {
-    background:#1c1c1c;
-    border:2px solid #ff4081;
-    border-radius:15px;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:2rem;
-    cursor:pointer;
-    transition:0.3s;
-    color:#ff4081;
-    text-shadow:0 0 5px #ff4081;
-  }
-
-  .cell:hover {
-    background:#2a2a2a;
-    transform:scale(1.05);
-  }
-
-  .winner {
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%, -50%);
-    font-size:3rem;
-    color:#00ff00;
-    text-shadow:0 0 20px #00ff00, 0 0 40px #00ff00;
-    display:none;
-    animation:flash 1s ease-in-out infinite alternate;
-  }
-
-  @keyframes flash {
-    0% { opacity:1; }
-    100% { opacity:0.3; }
-  }
-
-  footer {
-    text-align:center;
-    padding:20px;
-    background:#121212;
-    color:#888;
-  }
-
-  @media (min-width:768px){
-    .board { grid-template-columns:repeat(3, 120px); grid-template-rows:repeat(3,120px);}
-    .cell { font-size:2.5rem;}
-  }
-
-  @media (min-width:1024px){
-    .board { grid-template-columns:repeat(3, 150px); grid-template-rows:repeat(3,150px);}
-    .cell { font-size:3rem;}
-  }
-
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+html, body {
+  margin:0; padding:0;
+  font-family: 'Press Start 2P', cursive;
+  background:#0d0d0d; color:#fff;
+  display:flex; flex-direction:column; min-height:100vh;
+  overflow-x:hidden;
+}
+header {
+  text-align:center; padding:40px 20px;
+  background:linear-gradient(90deg, #ff4081, #ff6f91);
+  box-shadow:0 4px 15px rgba(0,0,0,0.7);
+}
+header h1 { margin:0; font-size:2.5rem; color:#fff; text-shadow:0 0 15px #ff4081; }
+.room-input { text-align:center; margin:20px; }
+.room-input input {
+  padding:10px; font-size:1rem; border-radius:10px; border:none; outline:none; width:200px; margin-right:10px;
+}
+.room-input button {
+  padding:10px 15px; font-size:1rem; border-radius:10px; border:none; cursor:pointer;
+  background:#ff4081; color:#fff; transition:0.3s;
+}
+.room-input button:hover { background:#ff6f91; }
+.board-container {
+  display:flex; justify-content:center; align-items:center;
+  flex:1; padding:40px 20px; position:relative;
+}
+.board {
+  display:grid; grid-template-columns:repeat(3, 100px); grid-template-rows:repeat(3, 100px); gap:10px;
+}
+.cell {
+  background:#1c1c1c; border:2px solid #ff4081; border-radius:15px;
+  display:flex; justify-content:center; align-items:center;
+  font-size:2rem; cursor:pointer; transition:0.3s, box-shadow 0.3s;
+  color:#ff4081; text-shadow:0 0 5px #ff4081;
+}
+.cell:hover { background:#2a2a2a; transform:scale(1.05); box-shadow:0 0 20px #ff4081; }
+.winner {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%, -50%);
+  font-size:3rem; color:#00ff00;
+  text-shadow:0 0 20px #00ff00, 0 0 40px #00ff00;
+  display:none; animation:flash 1s ease-in-out infinite alternate;
+}
+@keyframes flash { 0% { opacity:1; } 100% { opacity:0.3; } }
+footer { text-align:center; padding:20px; background:#121212; color:#888; }
+@media (min-width:768px){ .board { grid-template-columns:repeat(3,120px); grid-template-rows:repeat(3,120px); } .cell { font-size:2.5rem; } }
+@media (min-width:1024px){ .board { grid-template-columns:repeat(3,150px); grid-template-rows:repeat(3,150px); } .cell { font-size:3rem; } }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>X & O</h1>
+  <h1>X & O Multiplayer</h1>
 </header>
+
+<div class="room-input">
+  <input type="text" id="roomCode" placeholder="Enter Room Code">
+  <button onclick="joinRoom()">Join / Create Room</button>
+</div>
 
 <div class="board-container">
   <div class="board" id="board">
@@ -121,22 +80,34 @@
     <div class="cell" data-index="7"></div>
     <div class="cell" data-index="8"></div>
   </div>
+  <div class="winner" id="winnerMessage"></div>
 </div>
-
-<div class="winner" id="winnerMessage"></div>
 
 <footer>
   &copy; 2025 Funnix.io | Multiplayer Games Portal
 </footer>
 
 <script>
-  const board = document.getElementById('board');
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "funnix-f4632.firebaseapp.com",
+    databaseURL: "https://funnix-f4632-default-rtdb.firebaseio.com",
+    projectId: "funnix-f4632",
+    storageBucket: "funnix-f4632.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
   const cells = document.querySelectorAll('.cell');
   const winnerMessage = document.getElementById('winnerMessage');
-
-  let currentPlayer = 'X';
   let boardState = Array(9).fill(null);
+  let currentTurn = 'X';
   let gameOver = false;
+  let room = null;
+  let player = null;
 
   const winCombos = [
     [0,1,2],[3,4,5],[6,7,8],
@@ -144,34 +115,92 @@
     [0,4,8],[2,4,6]
   ];
 
-  function checkWinner() {
-    for(const combo of winCombos){
-      const [a,b,c] = combo;
-      if(boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c]){
-        gameOver = true;
-        winnerMessage.textContent = `${boardState[a]} Wins!`;
-        winnerMessage.style.display = 'block';
+  function joinRoom(){
+    const code = document.getElementById('roomCode').value.trim();
+    if(!code) return alert('Enter a room code');
+    room = db.ref('rooms/' + code);
+
+    room.once('value', snapshot => {
+      let data = snapshot.val();
+      if(!data){
+        // first player
+        room.set({board:Array(9).fill(null), turn:'X', winner:null, players:['X']});
+        player='X';
+        alert('You are X');
+      } else if(data.players.length===1){
+        // second player
+        room.update({players:['X','O']});
+        player='O';
+        alert('You are O');
+      } else {
+        alert('Room full!');
+        room=null;
         return;
       }
-    }
-    if(!boardState.includes(null)){
-      gameOver = true;
-      winnerMessage.textContent = `Draw!`;
-      winnerMessage.style.display = 'block';
-    }
+      listenBoard();
+    });
   }
 
-  cells.forEach(cell => {
-    cell.addEventListener('click', () => {
-      const index = cell.dataset.index;
-      if(!boardState[index] && !gameOver){
-        boardState[index] = currentPlayer;
-        cell.textContent = currentPlayer;
-        checkWinner();
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+  function listenBoard(){
+    room.on('value', snapshot=>{
+      const data = snapshot.val();
+      boardState = data.board;
+      currentTurn = data.turn;
+      gameOver = !!data.winner;
+      updateBoard();
+      if(data.winner){
+        winnerMessage.textContent = data.winner==='Draw' ? 'Draw!' : `${data.winner} Wins!`;
+        winnerMessage.style.display='block';
+        highlightWinner(getWinnerCombo());
+      } else winnerMessage.style.display='none';
+    });
+  }
+
+  function getWinnerCombo(){
+    for(const combo of winCombos){
+      const [a,b,c]=combo;
+      if(boardState[a] && boardState[a]===boardState[b] && boardState[a]===boardState[c]) return combo;
+    }
+    return [];
+  }
+
+  function updateBoard(){
+    cells.forEach((cell,i)=>{
+      cell.textContent=boardState[i]?boardState[i]:'';
+      cell.style.boxShadow='';
+    });
+  }
+
+  cells.forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      if(!room || gameOver) return;
+      const i = cell.dataset.index;
+      if(!boardState[i] && currentTurn===player){
+        boardState[i]=player;
+        const winner = checkWinner();
+        room.update({
+          board: boardState,
+          turn: player==='X'?'O':'X',
+          winner: winner
+        });
       }
     });
   });
+
+  function checkWinner(){
+    for(const combo of winCombos){
+      const [a,b,c]=combo;
+      if(boardState[a] && boardState[a]===boardState[b] && boardState[a]===boardState[c]) return boardState[a];
+    }
+    if(!boardState.includes(null)) return 'Draw';
+    return null;
+  }
+
+  function highlightWinner(combo){
+    combo.forEach(i=>{
+      cells[i].style.boxShadow='0 0 25px #00ff00';
+    });
+  }
 </script>
 
 </body>
