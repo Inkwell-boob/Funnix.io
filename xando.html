@@ -2,76 +2,177 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>X&O Multiplayer</title>
+<title>Funnix.io - X & O</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body { text-align:center; font-family:sans-serif; margin-top:50px; background:#121212; color:white; }
-  h1 { color:#ff4081; }
-  .board { display:grid; grid-template-columns:repeat(3,100px); grid-gap:5px; justify-content:center; margin-top:20px; }
-  .cell { width:100px; height:100px; background:#333; display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer; border-radius:8px; }
-  input, button { padding:5px 10px; font-size:1rem; margin:5px; border-radius:5px; border:none; }
-  button { cursor:pointer; background:#ff4081; color:white; }
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  html, body {
+    margin:0;
+    padding:0;
+    font-family: 'Press Start 2P', cursive;
+    background:#0d0d0d;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  header {
+    text-align:center;
+    padding:40px 20px;
+    background:linear-gradient(90deg, #ff4081, #ff6f91);
+    box-shadow:0 4px 15px rgba(0,0,0,0.7);
+  }
+
+  header h1 {
+    margin:0;
+    font-size:2.5rem;
+    color:#fff;
+    text-shadow:0 0 15px #ff4081;
+  }
+
+  .board-container {
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex:1;
+    padding:40px 20px;
+  }
+
+  .board {
+    display:grid;
+    grid-template-columns:repeat(3, 100px);
+    grid-template-rows:repeat(3, 100px);
+    gap:10px;
+  }
+
+  .cell {
+    background:#1c1c1c;
+    border:2px solid #ff4081;
+    border-radius:15px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:2rem;
+    cursor:pointer;
+    transition:0.3s;
+    color:#ff4081;
+    text-shadow:0 0 5px #ff4081;
+  }
+
+  .cell:hover {
+    background:#2a2a2a;
+    transform:scale(1.05);
+  }
+
+  .winner {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    font-size:3rem;
+    color:#00ff00;
+    text-shadow:0 0 20px #00ff00, 0 0 40px #00ff00;
+    display:none;
+    animation:flash 1s ease-in-out infinite alternate;
+  }
+
+  @keyframes flash {
+    0% { opacity:1; }
+    100% { opacity:0.3; }
+  }
+
+  footer {
+    text-align:center;
+    padding:20px;
+    background:#121212;
+    color:#888;
+  }
+
+  @media (min-width:768px){
+    .board { grid-template-columns:repeat(3, 120px); grid-template-rows:repeat(3,120px);}
+    .cell { font-size:2.5rem;}
+  }
+
+  @media (min-width:1024px){
+    .board { grid-template-columns:repeat(3, 150px); grid-template-rows:repeat(3,150px);}
+    .cell { font-size:3rem;}
+  }
+
 </style>
 </head>
 <body>
-<h1>X&O Multiplayer</h1>
 
-<div>
-  <button onclick="createRoom()">Create Room</button>
-  <input id="roomInput" placeholder="Enter Room Code">
-  <button onclick="joinRoom()">Join Room</button>
+<header>
+  <h1>X & O</h1>
+</header>
+
+<div class="board-container">
+  <div class="board" id="board">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
 </div>
 
-<h2 id="status">Status: Waiting...</h2>
+<div class="winner" id="winnerMessage"></div>
 
-<div class="board" id="board">
-  <div class="cell" onclick="makeMove(0)"></div>
-  <div class="cell" onclick="makeMove(1)"></div>
-  <div class="cell" onclick="makeMove(2)"></div>
-  <div class="cell" onclick="makeMove(3)"></div>
-  <div class="cell" onclick="makeMove(4)"></div>
-  <div class="cell" onclick="makeMove(5)"></div>
-  <div class="cell" onclick="makeMove(6)"></div>
-  <div class="cell" onclick="makeMove(7)"></div>
-  <div class="cell" onclick="makeMove(8)"></div>
-</div>
+<footer>
+  &copy; 2025 Funnix.io | Multiplayer Games Portal
+</footer>
 
 <script>
-const BOT_TOKEN = "8079660368:AAGMxDRyJUem69AQhXZxnPKK9KH3mD3kR7E";
-const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-let roomCode = "";
-let player = "";
-let chatId = prompt("Enter your Telegram Chat ID:");
+  const board = document.getElementById('board');
+  const cells = document.querySelectorAll('.cell');
+  const winnerMessage = document.getElementById('winnerMessage');
 
-async function sendToBot(text) {
-  await fetch(TELEGRAM_API, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({chat_id: chatId, text})
+  let currentPlayer = 'X';
+  let boardState = Array(9).fill(null);
+  let gameOver = false;
+
+  const winCombos = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  function checkWinner() {
+    for(const combo of winCombos){
+      const [a,b,c] = combo;
+      if(boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c]){
+        gameOver = true;
+        winnerMessage.textContent = `${boardState[a]} Wins!`;
+        winnerMessage.style.display = 'block';
+        return;
+      }
+    }
+    if(!boardState.includes(null)){
+      gameOver = true;
+      winnerMessage.textContent = `Draw!`;
+      winnerMessage.style.display = 'block';
+    }
+  }
+
+  cells.forEach(cell => {
+    cell.addEventListener('click', () => {
+      const index = cell.dataset.index;
+      if(!boardState[index] && !gameOver){
+        boardState[index] = currentPlayer;
+        cell.textContent = currentPlayer;
+        checkWinner();
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      }
+    });
   });
-}
-
-function createRoom() {
-  roomCode = Math.random().toString(36).substring(2,7).toUpperCase();
-  player = "X";
-  document.getElementById("status").innerText = `Room: ${roomCode} | You are X | Waiting for O`;
-  sendToBot(`ROOM:${roomCode} | PLAYER:${player} | Waiting for opponent`);
-}
-
-function joinRoom() {
-  roomCode = document.getElementById("roomInput").value.toUpperCase();
-  player = "O";
-  document.getElementById("status").innerText = `Joined Room: ${roomCode} | You are O`;
-  sendToBot(`ROOM:${roomCode} | PLAYER:${player} joined the game`);
-}
-
-function makeMove(index) {
-  const cells = document.getElementById("board").children;
-  if(cells[index].innerText !== "") return;
-  cells[index].innerText = player;
-  sendToBot(`ROOM:${roomCode} | PLAYER:${player} moved to cell ${index}`);
-  player = player === "X" ? "O" : "X";
-  document.getElementById("status").innerText = `Room: ${roomCode} | Next turn: ${player}`;
-}
 </script>
+
 </body>
 </html>
