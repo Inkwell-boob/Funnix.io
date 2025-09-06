@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tic-Tac-Toe Firebase Multiplayer</title>
+<style>
+  body { text-align:center; font-family:sans-serif; margin-top:50px; background:#121212; color:white; }
+  h1 { color:#ff4081; }
+  .board { display:grid; grid-template-columns:repeat(3,100px); grid-gap:5px; justify-content:center; margin-top:20px; }
+  .cell { width:100px; height:100px; background:#333; display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer; border-radius:8px; }
+  input, button { padding:5px 10px; font-size:1rem; margin:5px; border-radius:5px; border:none; }
+  button { cursor:pointer; background:#ff4081; color:white; }
+</style>
+</head>
+<body>
+<h1>Tic-Tac-Toe Multiplayer</h1>
+
+<div id="setup">
+  <input id="playerInput" placeholder="Enter your player name (X or O)">
+  <input id="roomInput" placeholder="Enter Room Code (or leave blank to create)">
+  <button onclick="startGame()">Start Game</button>
+</div>
+
+<h2 id="status">Status: Waiting...</h2>
+
+<div class="board" id="board" style="display:none;">
+  <div class="cell" onclick="makeMove(0)"></div>
+  <div class="cell" onclick="makeMove(1)"></div>
+  <div class="cell" onclick="makeMove(2)"></div>
+  <div class="cell" onclick="makeMove(3)"></div>
+  <div class="cell" onclick="makeMove(4)"></div>
+  <div class="cell" onclick="makeMove(5)"></div>
+  <div class="cell" onclick="makeMove(6)"></div>
+  <div class="cell" onclick="makeMove(7)"></div>
+  <div class="cell" onclick="makeMove(8)"></div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "funnix-f4632.firebaseapp.com",
+  databaseURL: "https://funnix-f4632-default-rtdb.firebaseio.com/",
+  projectId: "funnix-f4632",
+  storageBucket: "funnix-f4632.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let roomCode = "";
+let player = "";
+let board = ["","","","","","","","",""];
+let gameActive = true;
+
+// Start game
+function startGame() {
+  player = document.getElementById("playerInput").value.trim().toUpperCase();
+  roomCode = document.getElementById("roomInput").value.trim().toUpperCase();
+
+  if(!player || (player !== "X" && player !== "O")) {
+    alert("Enter X or O as player");
+    return;
+  }
+
+  if(!roomCode) {
+    roomCode = Math.random().toString(36).substring(2,7).toUpperCase();
+    db.ref('games/' + roomCode).set({
+      board: ["","","","","","","","",""],
+      turn: "X",
+      players: {[player]: true},
+      status: "playing"
+    });
+    document.getElementById("status").innerText = `Room: ${roomCode} | You are ${player} | Waiting for opponent`;
+  } else {
+    db.ref('games/' + roomCode + '/players/' + player).set(true);
+    document.getElementById("status").innerText = `Joined Room: ${roomCode} | You are ${player}`;
+  }
+
+  document.getElementById("setup").style.display = "none";
+  document.getElementById("board").style.display = "grid";
+
+  // Listen for changes in Firebase
+  db.ref('games/' + roomCode).on('value', snapshot => {
+    const data = snapshot.val();
+    if(!data) return;
+    board = data.board;
+    gameActive = data.status === "playing";
+    renderBoard();
+    if(data.status === "playing"){
+      document.getElementById("status").innerText = `Room: ${roomCode} | Next turn: ${data.turn}`;
+    } else {
+      document.getElementById("status").innerText = `Game Over: ${data.status}`;
+    }
+  });
+}
+
+// Make a move
+function makeMove(index) {
+  if(!gameActive) return;
+  db.ref('games/' + roomCode).get().then(snapshot => {
+    const data = snapshot.val();
+    if(!data) return;
+    if(board[index] !== "" || data.turn !== player) return;
+
+    board[index] = player;
+    const winner = checkWinner(board);
+    let status = "playing";
+    let nextTurn = player === "X" ? "O" : "X";
+
+    if(winner) status = winner + " wins!";
+    else if(board.every(c => c !== "")) status = "Draw!";
+
+    db.ref('games/' + roomCode).update({
+      board,
+      turn: status === "playing" ? nextTurn : player,
+      status
+    });
+  });
+}
+
+// Render board
+function renderBoard() {
+  const cells = document.getElementById("board").children;
+  for(let i=0;i<9;i++){
+    cells[i].innerText = board[i];
+  }
+}
+
+// Check winner
+function checkWinner(b) {
+  const wins = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  for(const [a,b1,c] of wins){
+    if(b[a] && b[a] === b[b1] && b[a] === b[c]) return b[a];
+  }
+  return null;
+}
+</script>
+</body>
+</html>

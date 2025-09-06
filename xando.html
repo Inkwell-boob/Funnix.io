@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>X&O Multiplayer</title>
+<style>
+  body { text-align:center; font-family:sans-serif; margin-top:50px; background:#121212; color:white; }
+  h1 { color:#ff4081; }
+  .board { display:grid; grid-template-columns:repeat(3,100px); grid-gap:5px; justify-content:center; margin-top:20px; }
+  .cell { width:100px; height:100px; background:#333; display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer; border-radius:8px; }
+  input, button { padding:5px 10px; font-size:1rem; margin:5px; border-radius:5px; border:none; }
+  button { cursor:pointer; background:#ff4081; color:white; }
+</style>
+</head>
+<body>
+<h1>X&O Multiplayer</h1>
+
+<div>
+  <button onclick="createRoom()">Create Room</button>
+  <input id="roomInput" placeholder="Enter Room Code">
+  <button onclick="joinRoom()">Join Room</button>
+</div>
+
+<h2 id="status">Status: Waiting...</h2>
+
+<div class="board" id="board">
+  <div class="cell" onclick="makeMove(0)"></div>
+  <div class="cell" onclick="makeMove(1)"></div>
+  <div class="cell" onclick="makeMove(2)"></div>
+  <div class="cell" onclick="makeMove(3)"></div>
+  <div class="cell" onclick="makeMove(4)"></div>
+  <div class="cell" onclick="makeMove(5)"></div>
+  <div class="cell" onclick="makeMove(6)"></div>
+  <div class="cell" onclick="makeMove(7)"></div>
+  <div class="cell" onclick="makeMove(8)"></div>
+</div>
+
+<script>
+const BOT_TOKEN = "8079660368:AAGMxDRyJUem69AQhXZxnPKK9KH3mD3kR7E";
+const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+let roomCode = "";
+let player = "";
+let chatId = prompt("Enter your Telegram Chat ID:");
+
+async function sendToBot(text) {
+  await fetch(TELEGRAM_API, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({chat_id: chatId, text})
+  });
+}
+
+function createRoom() {
+  roomCode = Math.random().toString(36).substring(2,7).toUpperCase();
+  player = "X";
+  document.getElementById("status").innerText = `Room: ${roomCode} | You are X | Waiting for O`;
+  sendToBot(`ROOM:${roomCode} | PLAYER:${player} | Waiting for opponent`);
+}
+
+function joinRoom() {
+  roomCode = document.getElementById("roomInput").value.toUpperCase();
+  player = "O";
+  document.getElementById("status").innerText = `Joined Room: ${roomCode} | You are O`;
+  sendToBot(`ROOM:${roomCode} | PLAYER:${player} joined the game`);
+}
+
+function makeMove(index) {
+  const cells = document.getElementById("board").children;
+  if(cells[index].innerText !== "") return;
+  cells[index].innerText = player;
+  sendToBot(`ROOM:${roomCode} | PLAYER:${player} moved to cell ${index}`);
+  player = player === "X" ? "O" : "X";
+  document.getElementById("status").innerText = `Room: ${roomCode} | Next turn: ${player}`;
+}
+</script>
+</body>
+</html>
