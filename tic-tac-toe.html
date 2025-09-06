@@ -4,20 +4,20 @@
 <meta charset="UTF-8">
 <title>Tic-Tac-Toe Firebase Multiplayer</title>
 <style>
-  body { text-align:center; font-family:sans-serif; margin-top:50px; background:#121212; color:white; }
-  h1 { color:#ff4081; }
-  .board { display:grid; grid-template-columns:repeat(3,100px); grid-gap:5px; justify-content:center; margin-top:20px; }
-  .cell { width:100px; height:100px; background:#333; display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer; border-radius:8px; }
-  input, button { padding:5px 10px; font-size:1rem; margin:5px; border-radius:5px; border:none; }
-  button { cursor:pointer; background:#ff4081; color:white; }
+body { font-family:sans-serif; text-align:center; background:#121212; color:white; margin-top:50px; }
+h1 { color:#ff4081; }
+.board { display:grid; grid-template-columns:repeat(3,100px); grid-gap:5px; justify-content:center; margin-top:20px; position:relative; }
+.cell { width:100px; height:100px; background:#333; display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer; border-radius:8px; transition:0.3s; position:relative; z-index:1; }
+input,button { padding:5px 10px; font-size:1rem; margin:5px; border-radius:5px; border:none; }
+button { cursor:pointer; background:#ff4081; color:white; }
+.line { position:absolute; background:#ff4081; z-index:0; transform-origin:center; transition: all 0.5s ease; }
 </style>
 </head>
 <body>
 <h1>Tic-Tac-Toe Multiplayer</h1>
-
 <div id="setup">
-  <input id="playerInput" placeholder="Enter your player name (X or O)">
-  <input id="roomInput" placeholder="Enter Room Code (or leave blank to create)">
+  <input id="playerInput" placeholder="Enter your name">
+  <input id="roomInput" placeholder="Enter Room Code (or leave blank)">
   <button onclick="startGame()">Start Game</button>
 </div>
 
@@ -35,7 +35,6 @@
   <div class="cell" onclick="makeMove(8)"></div>
 </div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -54,95 +53,116 @@ const db = firebase.database();
 
 let roomCode = "";
 let player = "";
+let mySymbol = "";
 let board = ["","","","","","","","",""];
 let gameActive = true;
 
-// Start game
-function startGame() {
-  player = document.getElementById("playerInput").value.trim().toUpperCase();
+function startGame(){
+  const name = document.getElementById("playerInput").value.trim();
   roomCode = document.getElementById("roomInput").value.trim().toUpperCase();
+  if(!name) return alert("Enter your name");
 
-  if(!player || (player !== "X" && player !== "O")) {
-    alert("Enter X or O as player");
-    return;
-  }
-
-  if(!roomCode) {
+  if(!roomCode){
     roomCode = Math.random().toString(36).substring(2,7).toUpperCase();
-    db.ref('games/' + roomCode).set({
-      board: ["","","","","","","","",""],
-      turn: "X",
-      players: {[player]: true},
-      status: "playing"
-    });
-    document.getElementById("status").innerText = `Room: ${roomCode} | You are ${player} | Waiting for opponent`;
+    mySymbol = "X";
+    db.ref('games/'+roomCode).set({board:["","","","","","","","",""],turn:"X",players:{X:name},status:"playing"});
+    document.getElementById("status").innerText=`Room: ${roomCode} | You are X | Waiting for O`;
   } else {
-    db.ref('games/' + roomCode + '/players/' + player).set(true);
-    document.getElementById("status").innerText = `Joined Room: ${roomCode} | You are ${player}`;
+    mySymbol = "O";
+    db.ref('games/'+roomCode+'/players/O').set(name);
+    document.getElementById("status").innerText=`Joined Room: ${roomCode} | You are O`;
   }
 
-  document.getElementById("setup").style.display = "none";
-  document.getElementById("board").style.display = "grid";
+  document.getElementById("setup").style.display="none";
+  document.getElementById("board").style.display="grid";
 
-  // Listen for changes in Firebase
-  db.ref('games/' + roomCode).on('value', snapshot => {
-    const data = snapshot.val();
+  db.ref('games/'+roomCode).on('value',snap=>{
+    const data = snap.val();
     if(!data) return;
     board = data.board;
-    gameActive = data.status === "playing";
+    gameActive = data.status==="playing";
     renderBoard();
-    if(data.status === "playing"){
-      document.getElementById("status").innerText = `Room: ${roomCode} | Next turn: ${data.turn}`;
+    if(data.status==="playing"){
+      document.getElementById("status").innerText=`Room: ${roomCode} | Turn: ${data.turn}`;
+      removeLine();
     } else {
-      document.getElementById("status").innerText = `Game Over: ${data.status}`;
+      document.getElementById("status").innerText=`Game Over: ${data.status}`;
+      if(data.status.includes("wins")){
+        animateWinLine(data.status[0]); // winner symbol
+      }
     }
   });
 }
 
-// Make a move
-function makeMove(index) {
+function makeMove(index){
   if(!gameActive) return;
-  db.ref('games/' + roomCode).get().then(snapshot => {
-    const data = snapshot.val();
+  db.ref('games/'+roomCode).get().then(snap=>{
+    const data = snap.val();
     if(!data) return;
-    if(board[index] !== "" || data.turn !== player) return;
+    if(board[index]!=="" || data.turn!==mySymbol) return;
 
-    board[index] = player;
+    board[index] = mySymbol;
     const winner = checkWinner(board);
     let status = "playing";
-    let nextTurn = player === "X" ? "O" : "X";
+    let nextTurn = mySymbol==="X"?"O":"X";
+    if(winner) status = winner+" wins!";
+    else if(board.every(c=>c!=="")) status="Draw!";
 
-    if(winner) status = winner + " wins!";
-    else if(board.every(c => c !== "")) status = "Draw!";
-
-    db.ref('games/' + roomCode).update({
-      board,
-      turn: status === "playing" ? nextTurn : player,
-      status
-    });
+    db.ref('games/'+roomCode).update({board,turn:status==="playing"?nextTurn:mySymbol,status});
   });
 }
 
-// Render board
-function renderBoard() {
+function renderBoard(){
   const cells = document.getElementById("board").children;
   for(let i=0;i<9;i++){
-    cells[i].innerText = board[i];
+    cells[i].innerText=board[i];
+    cells[i].classList.remove("win");
   }
 }
 
-// Check winner
-function checkWinner(b) {
-  const wins = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
+function checkWinner(b){
+  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   for(const [a,b1,c] of wins){
-    if(b[a] && b[a] === b[b1] && b[a] === b[c]) return b[a];
+    if(b[a] && b[a]===b[b1] && b[a]===b[c]){
+      return {symbol:b[a],cells:[a,b1,c]};
+    }
   }
   return null;
 }
+
+// Remove previous line
+function removeLine(){
+  const oldLine = document.querySelector(".line");
+  if(oldLine) oldLine.remove();
+}
+
+// Draw animated line across winning cells
+function animateWinLine(symbol){
+  const winner = checkWinner(board);
+  if(!winner) return;
+  const [a,b,c] = winner.cells;
+  const boardEl = document.getElementById("board");
+  const cell0 = boardEl.children[a];
+  const cell2 = boardEl.children[c];
+
+  const line = document.createElement("div");
+  line.className="line";
+  boardEl.appendChild(line);
+
+  const x1 = cell0.offsetLeft + cell0.offsetWidth/2;
+  const y1 = cell0.offsetTop + cell0.offsetHeight/2;
+  const x2 = cell2.offsetLeft + cell2.offsetWidth/2;
+  const y2 = cell2.offsetTop + cell2.offsetHeight/2;
+
+  const length = Math.hypot(x2-x1, y2-y1);
+  const angle = Math.atan2(y2-y1, x2-x1)*180/Math.PI;
+
+  line.style.width = length+"px";
+  line.style.height = "5px";
+  line.style.left = x1 + "px";
+  line.style.top = y1 + "px";
+  line.style.transform = `rotate(${angle}deg)`;
+}
 </script>
 </body>
-</html>
+  </html>
