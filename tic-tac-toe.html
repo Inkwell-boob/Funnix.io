@@ -15,9 +15,10 @@ button { cursor:pointer; background:#ff4081; color:white; }
 </head>
 <body>
 <h1>Tic-Tac-Toe Multiplayer</h1>
+
 <div id="setup">
   <input id="playerInput" placeholder="Enter your name">
-  <input id="roomInput" placeholder="Enter Room Code (or leave blank)">
+  <input id="roomInput" placeholder="Enter Room Code (leave blank to create)">
   <button onclick="startGame()">Start Game</button>
 </div>
 
@@ -52,7 +53,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let roomCode = "";
-let player = "";
 let mySymbol = "";
 let board = ["","","","","","","","",""];
 let gameActive = true;
@@ -76,19 +76,20 @@ function startGame(){
   document.getElementById("setup").style.display="none";
   document.getElementById("board").style.display="grid";
 
-  db.ref('games/'+roomCode).on('value',snap=>{
+  db.ref('games/'+roomCode).on('value', snap => {
     const data = snap.val();
     if(!data) return;
     board = data.board;
     gameActive = data.status==="playing";
     renderBoard();
-    if(data.status==="playing"){
+    removeLine();
+
+    if(gameActive){
       document.getElementById("status").innerText=`Room: ${roomCode} | Turn: ${data.turn}`;
-      removeLine();
     } else {
       document.getElementById("status").innerText=`Game Over: ${data.status}`;
       if(data.status.includes("wins")){
-        animateWinLine(data.status[0]); // winner symbol
+        animateWinLine();
       }
     }
   });
@@ -105,7 +106,8 @@ function makeMove(index){
     const winner = checkWinner(board);
     let status = "playing";
     let nextTurn = mySymbol==="X"?"O":"X";
-    if(winner) status = winner+" wins!";
+
+    if(winner) status = winner.symbol+" wins!";
     else if(board.every(c=>c!=="")) status="Draw!";
 
     db.ref('games/'+roomCode).update({board,turn:status==="playing"?nextTurn:mySymbol,status});
@@ -115,13 +117,12 @@ function makeMove(index){
 function renderBoard(){
   const cells = document.getElementById("board").children;
   for(let i=0;i<9;i++){
-    cells[i].innerText=board[i];
-    cells[i].classList.remove("win");
+    cells[i].innerText = board[i];
   }
 }
 
 function checkWinner(b){
-  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   for(const [a,b1,c] of wins){
     if(b[a] && b[a]===b[b1] && b[a]===b[c]){
       return {symbol:b[a],cells:[a,b1,c]};
@@ -130,39 +131,37 @@ function checkWinner(b){
   return null;
 }
 
-// Remove previous line
 function removeLine(){
   const oldLine = document.querySelector(".line");
   if(oldLine) oldLine.remove();
 }
 
-// Draw animated line across winning cells
-function animateWinLine(symbol){
+function animateWinLine(){
   const winner = checkWinner(board);
   if(!winner) return;
   const [a,b,c] = winner.cells;
   const boardEl = document.getElementById("board");
-  const cell0 = boardEl.children[a];
-  const cell2 = boardEl.children[c];
+  const cellA = boardEl.children[a];
+  const cellC = boardEl.children[c];
 
   const line = document.createElement("div");
   line.className="line";
   boardEl.appendChild(line);
 
-  const x1 = cell0.offsetLeft + cell0.offsetWidth/2;
-  const y1 = cell0.offsetTop + cell0.offsetHeight/2;
-  const x2 = cell2.offsetLeft + cell2.offsetWidth/2;
-  const y2 = cell2.offsetTop + cell2.offsetHeight/2;
+  const x1 = cellA.offsetLeft + cellA.offsetWidth/2;
+  const y1 = cellA.offsetTop + cellA.offsetHeight/2;
+  const x2 = cellC.offsetLeft + cellC.offsetWidth/2;
+  const y2 = cellC.offsetTop + cellC.offsetHeight/2;
 
   const length = Math.hypot(x2-x1, y2-y1);
   const angle = Math.atan2(y2-y1, x2-x1)*180/Math.PI;
 
   line.style.width = length+"px";
   line.style.height = "5px";
-  line.style.left = x1 + "px";
-  line.style.top = y1 + "px";
+  line.style.left = x1+"px";
+  line.style.top = y1+"px";
   line.style.transform = `rotate(${angle}deg)`;
 }
 </script>
 </body>
-  </html>
+</html>
