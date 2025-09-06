@@ -2,205 +2,157 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Funnix.io - X & O Multiplayer</title>
+<title>X&O Multiplayer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-html, body {
-  margin:0; padding:0;
-  font-family: 'Press Start 2P', cursive;
-  background:#0d0d0d; color:#fff;
-  display:flex; flex-direction:column; min-height:100vh;
-  overflow-x:hidden;
-}
-header {
-  text-align:center; padding:40px 20px;
-  background:linear-gradient(90deg, #ff4081, #ff6f91);
-  box-shadow:0 4px 15px rgba(0,0,0,0.7);
-}
-header h1 { margin:0; font-size:2.5rem; color:#fff; text-shadow:0 0 15px #ff4081; }
-.room-input { text-align:center; margin:20px; }
-.room-input input {
-  padding:10px; font-size:1rem; border-radius:10px; border:none; outline:none; width:200px; margin-right:10px;
-}
-.room-input button {
-  padding:10px 15px; font-size:1rem; border-radius:10px; border:none; cursor:pointer;
-  background:#ff4081; color:#fff; transition:0.3s;
-}
-.room-input button:hover { background:#ff6f91; }
-.board-container {
-  display:flex; justify-content:center; align-items:center;
-  flex:1; padding:40px 20px; position:relative;
-}
-.board {
-  display:grid; grid-template-columns:repeat(3, 100px); grid-template-rows:repeat(3, 100px); gap:10px;
-}
-.cell {
-  background:#1c1c1c; border:2px solid #ff4081; border-radius:15px;
-  display:flex; justify-content:center; align-items:center;
-  font-size:2rem; cursor:pointer; transition:0.3s, box-shadow 0.3s;
-  color:#ff4081; text-shadow:0 0 5px #ff4081;
-}
-.cell:hover { background:#2a2a2a; transform:scale(1.05); box-shadow:0 0 20px #ff4081; }
-.winner {
-  position:absolute; top:50%; left:50%;
-  transform:translate(-50%, -50%);
-  font-size:3rem; color:#00ff00;
-  text-shadow:0 0 20px #00ff00, 0 0 40px #00ff00;
-  display:none; animation:flash 1s ease-in-out infinite alternate;
-}
-@keyframes flash { 0% { opacity:1; } 100% { opacity:0.3; } }
-footer { text-align:center; padding:20px; background:#121212; color:#888; }
-@media (min-width:768px){ .board { grid-template-columns:repeat(3,120px); grid-template-rows:repeat(3,120px); } .cell { font-size:2.5rem; } }
-@media (min-width:1024px){ .board { grid-template-columns:repeat(3,150px); grid-template-rows:repeat(3,150px); } .cell { font-size:3rem; } }
+body { text-align:center; font-family: 'Press Start 2P', sans-serif; background:#121212; color:white; margin:0; padding:0;}
+h1 { color:#ff4081; margin-top:40px;}
+.board { display:grid; grid-template-columns:repeat(3,100px); grid-gap:5px; justify-content:center; margin:20px auto;}
+.cell { width:100px; height:100px; background:#333; display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer; border-radius:8px; transition:0.2s;}
+.cell:hover { transform:scale(1.05); box-shadow:0 0 10px #ff4081;}
+input, button { padding:5px 10px; font-size:1rem; margin:5px; border-radius:5px; border:none; }
+button { cursor:pointer; background:#ff4081; color:white; }
+#winner { font-size:1.5rem; color:#00ff00; margin-top:20px; text-shadow:0 0 10px #00ff00; display:none;}
 </style>
 </head>
 <body>
+<h1>X&O Multiplayer</h1>
 
-<header>
-  <h1>X & O Multiplayer</h1>
-</header>
-
-<div class="room-input">
-  <input type="text" id="roomCode" placeholder="Enter Room Code">
-  <button onclick="joinRoom()">Join / Create Room</button>
+<div>
+  <button onclick="createRoom()">Create Room</button>
+  <input id="roomInput" placeholder="Enter Room Code">
+  <button onclick="joinRoom()">Join Room</button>
 </div>
 
-<div class="board-container">
-  <div class="board" id="board">
-    <div class="cell" data-index="0"></div>
-    <div class="cell" data-index="1"></div>
-    <div class="cell" data-index="2"></div>
-    <div class="cell" data-index="3"></div>
-    <div class="cell" data-index="4"></div>
-    <div class="cell" data-index="5"></div>
-    <div class="cell" data-index="6"></div>
-    <div class="cell" data-index="7"></div>
-    <div class="cell" data-index="8"></div>
-  </div>
-  <div class="winner" id="winnerMessage"></div>
+<h2 id="status">Status: Waiting...</h2>
+<div class="board" id="board">
+  <div class="cell" data-index="0"></div>
+  <div class="cell" data-index="1"></div>
+  <div class="cell" data-index="2"></div>
+  <div class="cell" data-index="3"></div>
+  <div class="cell" data-index="4"></div>
+  <div class="cell" data-index="5"></div>
+  <div class="cell" data-index="6"></div>
+  <div class="cell" data-index="7"></div>
+  <div class="cell" data-index="8"></div>
 </div>
-
-<footer>
-  &copy; 2025 Funnix.io | Multiplayer Games Portal
-</footer>
+<div id="winner">Winner: </div>
 
 <script>
-  // Firebase config
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "funnix-f4632.firebaseapp.com",
-    databaseURL: "https://funnix-f4632-default-rtdb.firebaseio.com",
-    projectId: "funnix-f4632",
-    storageBucket: "funnix-f4632.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+const firebaseConfig = {
+  apiKey: "8079660368:AAGMxDRyJUem69AQhXZxnPKK9KH3mD3kR7E",
+  authDomain: "funnix-f4632.firebaseapp.com",
+  databaseURL: "https://funnix-f4632-default-rtdb.firebaseio.com",
+  projectId: "funnix-f4632",
+  storageBucket: "funnix-f4632.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  const cells = document.querySelectorAll('.cell');
-  const winnerMessage = document.getElementById('winnerMessage');
-  let boardState = Array(9).fill(null);
-  let currentTurn = 'X';
-  let gameOver = false;
-  let room = null;
-  let player = null;
+const cells = document.querySelectorAll('.cell');
+const status = document.getElementById('status');
+const winnerEl = document.getElementById('winner');
 
-  const winCombos = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
+let boardState = Array(9).fill(null);
+let player = '';
+let currentTurn = 'X';
+let gameOver = false;
+let roomRef = null;
 
-  function joinRoom(){
-    const code = document.getElementById('roomCode').value.trim();
-    if(!code) return alert('Enter a room code');
-    room = db.ref('rooms/' + code);
+const winCombos = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+];
 
-    room.once('value', snapshot => {
-      let data = snapshot.val();
-      if(!data){
-        // first player
-        room.set({board:Array(9).fill(null), turn:'X', winner:null, players:['X']});
-        player='X';
-        alert('You are X');
-      } else if(data.players.length===1){
-        // second player
-        room.update({players:['X','O']});
-        player='O';
-        alert('You are O');
-      } else {
-        alert('Room full!');
-        room=null;
-        return;
-      }
-      listenBoard();
-    });
-  }
+function createRoom(){
+  const code = Math.random().toString(36).substring(2,7).toUpperCase();
+  roomRef = db.ref('rooms/' + code);
+  roomRef.set({board:Array(9).fill(null), turn:'X', winner:null, players:['X']});
+  player = 'X';
+  status.innerText = `Room: ${code} | You are X | Waiting for opponent...`;
+  listenBoard();
+}
 
-  function listenBoard(){
-    room.on('value', snapshot=>{
-      const data = snapshot.val();
-      boardState = data.board;
-      currentTurn = data.turn;
-      gameOver = !!data.winner;
-      updateBoard();
-      if(data.winner){
-        winnerMessage.textContent = data.winner==='Draw' ? 'Draw!' : `${data.winner} Wins!`;
-        winnerMessage.style.display='block';
-        highlightWinner(getWinnerCombo());
-      } else winnerMessage.style.display='none';
-    });
-  }
-
-  function getWinnerCombo(){
-    for(const combo of winCombos){
-      const [a,b,c]=combo;
-      if(boardState[a] && boardState[a]===boardState[b] && boardState[a]===boardState[c]) return combo;
-    }
-    return [];
-  }
-
-  function updateBoard(){
-    cells.forEach((cell,i)=>{
-      cell.textContent=boardState[i]?boardState[i]:'';
-      cell.style.boxShadow='';
-    });
-  }
-
-  cells.forEach(cell=>{
-    cell.addEventListener('click', ()=>{
-      if(!room || gameOver) return;
-      const i = cell.dataset.index;
-      if(!boardState[i] && currentTurn===player){
-        boardState[i]=player;
-        const winner = checkWinner();
-        room.update({
-          board: boardState,
-          turn: player==='X'?'O':'X',
-          winner: winner
-        });
-      }
-    });
+function joinRoom(){
+  const code = document.getElementById('roomInput').value.toUpperCase();
+  if(!code) return alert('Enter a valid room code');
+  roomRef = db.ref('rooms/' + code);
+  roomRef.once('value', snapshot=>{
+    const data = snapshot.val();
+    if(!data) return alert('Room not found!');
+    if(data.players.length>=2) return alert('Room full!');
+    player = 'O';
+    roomRef.update({players:['X','O']});
+    status.innerText = `Joined Room: ${code} | You are O`;
+    listenBoard();
   });
+}
 
-  function checkWinner(){
-    for(const combo of winCombos){
-      const [a,b,c]=combo;
-      if(boardState[a] && boardState[a]===boardState[b] && boardState[a]===boardState[c]) return boardState[a];
+function listenBoard(){
+  roomRef.on('value', snapshot=>{
+    const data = snapshot.val();
+    boardState = data.board;
+    currentTurn = data.turn;
+    gameOver = !!data.winner;
+    updateBoard();
+    if(data.players.length<2 && player==='X'){
+      status.innerText = `Room: ${snapshot.key} | You are X | Waiting for opponent...`;
+      return;
     }
-    if(!boardState.includes(null)) return 'Draw';
-    return null;
-  }
+    if(data.winner){
+      winnerEl.style.display='block';
+      winnerEl.innerText = data.winner==='Draw' ? 'Draw!' : `Winner: ${data.winner}`;
+      highlightWinner(getWinnerCombo());
+    } else winnerEl.style.display='none';
+    status.innerText = `Room: ${snapshot.key} | Your mark: ${player} | Next turn: ${currentTurn}`;
+  });
+}
 
-  function highlightWinner(combo){
-    combo.forEach(i=>{
-      cells[i].style.boxShadow='0 0 25px #00ff00';
-    });
+function updateBoard(){
+  cells.forEach((cell,i)=>{
+    cell.innerText = boardState[i] ? boardState[i] : '';
+    cell.style.boxShadow='';
+  });
+}
+
+function makeMove(index){
+  if(gameOver || currentTurn!==player || boardState[index]) return;
+  boardState[index]=player;
+  const winner = checkWinner();
+  roomRef.update({board:boardState, turn:player==='X'?'O':'X', winner:winner});
+}
+
+function checkWinner(){
+  for(const combo of winCombos){
+    const [a,b,c] = combo;
+    if(boardState[a] && boardState[a]===boardState[b] && boardState[a]===boardState[c]){
+      return boardState[a];
+    }
   }
+  if(!boardState.includes(null)) return 'Draw';
+  return null;
+}
+
+function getWinnerCombo(){
+  for(const combo of winCombos){
+    const [a,b,c] = combo;
+    if(boardState[a] && boardState[a]===boardState[b] && boardState[a]===boardState[c]) return combo;
+  }
+  return [];
+}
+
+function highlightWinner(combo){
+  combo.forEach(i=>cells[i].style.boxShadow='0 0 25px #00ff00');
+}
+
+cells.forEach((cell,i)=>{
+  cell.addEventListener('click',()=>makeMove(i));
+});
 </script>
 
 </body>
